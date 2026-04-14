@@ -14,32 +14,37 @@
     </style>
 </head>
 <body class="min-h-screen p-4 flex flex-col items-center">
-    <div class="w-full max-w-md mt-10">
-        <h1 class="text-3xl font-bold text-center mb-6 uppercase tracking-widest">🔥 FOZI KHAN <br><span class="text-blue-500 text-2xl">TEMP MAIL PRO</span></h1>
+    <div class="w-full max-w-md mt-6">
+        <h1 class="text-3xl font-bold text-center mb-6 uppercase tracking-widest text-blue-500">🔥 FOZI KHAN <br><span class="text-white text-2xl">TEMP MAIL PRO</span></h1>
 
-        <div class="glass p-6 rounded-3xl mb-6 text-center shadow-2xl">
-            <div id="emailBox" class="bg-slate-900 border border-slate-700 p-4 rounded-xl text-blue-400 font-mono text-lg mb-4 break-all italic">Click "NEW" To Generate</div>
-            <div class="flex gap-2">
-                <button onclick="copyEmail()" class="flex-1 bg-blue-600 p-4 rounded-xl font-bold active:scale-95 transition hover:bg-blue-500">Copy</button>
-                <button id="genBtn" onclick="createNewMail()" class="flex-1 bg-slate-700 p-4 rounded-xl font-bold active:scale-95 transition hover:bg-slate-600">New</button>
+        <div class="glass p-6 rounded-3xl mb-4 text-center shadow-2xl">
+            <div id="emailBox" class="bg-slate-900 border border-slate-700 p-4 rounded-xl text-blue-400 font-mono text-lg mb-4 break-all italic">Click "NEW" To Start</div>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="copyEmail()" class="bg-blue-600 p-3 rounded-xl font-bold active:scale-95 transition hover:bg-blue-500"><i class="fas fa-copy"></i> Copy</button>
+                <button id="genBtn" onclick="createNewMail()" class="bg-slate-700 p-3 rounded-xl font-bold active:scale-95 transition hover:bg-slate-600"><i class="fas fa-plus"></i> New Mail</button>
             </div>
         </div>
 
-        <div class="glass rounded-3xl overflow-hidden min-h-[300px]">
+        <div class="glass rounded-3xl overflow-hidden min-h-[350px] flex flex-col">
             <div class="p-4 border-b border-slate-700 bg-slate-800/50 font-bold flex justify-between items-center">
                 <span>📩 Inbox</span>
-                <span id="statusIndicator" class="text-xs text-slate-500 italic">Offline</span>
+                <button onclick="fetchMails()" id="refreshBtn" class="text-xs bg-blue-600 px-3 py-1 rounded-full hover:bg-blue-500 transition">
+                    <i id="refreshIcon" class="fas fa-sync-alt"></i> Refresh Inbox
+                </button>
             </div>
-            <div id="mailList" class="p-4 flex flex-col gap-3">
-                <div id="noMails" class="text-center text-slate-500 mt-10 italic">No messages yet.</div>
+            
+            <div id="statusIndicator" class="px-4 py-2 text-[10px] text-center border-b border-slate-800 text-slate-500">Offline</div>
+
+            <div id="mailList" class="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
+                <div id="noMails" class="text-center text-slate-500 mt-10 italic">No messages yet. Click Refresh to check.</div>
             </div>
         </div>
     </div>
 
-    <div id="mailModal" class="fixed inset-0 bg-black/90 hidden z-50 p-4 flex items-center justify-center">
-        <div class="bg-white text-black p-6 rounded-2xl w-full max-w-lg shadow-2xl overflow-y-auto max-h-[80vh]">
-            <button onclick="closeModal()" class="float-right text-red-500 font-bold">CLOSE</button>
-            <div id="modalContent" class="mt-6 text-sm"></div>
+    <div id="mailModal" class="fixed inset-0 bg-black/95 hidden z-50 p-4 flex items-center justify-center">
+        <div class="bg-white text-black p-6 rounded-2xl w-full max-w-lg shadow-2xl overflow-y-auto max-h-[85vh]">
+            <button onclick="closeModal()" class="float-right text-red-500 font-bold text-lg">&times; CLOSE</button>
+            <div id="modalContent" class="mt-8"></div>
         </div>
     </div>
 
@@ -49,17 +54,15 @@
 
         async function createNewMail() {
             const btn = document.getElementById('genBtn');
-            btn.innerHTML = '<i class="fas fa-sync-alt loading-spin"></i>';
+            btn.disabled = true;
             document.getElementById('emailBox').innerText = "Generating...";
 
             try {
-                // Get Domain
                 const domainRes = await fetch('https://api.mail.tm/domains');
                 const domains = await domainRes.json();
                 const domain = domains['hydra:member'][0].domain;
 
-                // Create Unique Account
-                const randomUser = Math.random().toString(36).substring(2, 10);
+                const randomUser = Math.random().toString(36).substring(2, 12);
                 const password = "password123";
                 currentEmail = `${randomUser}@${domain}`;
 
@@ -69,7 +72,6 @@
                     body: JSON.stringify({ address: currentEmail, password: password })
                 });
 
-                // Get Token
                 const tokenRes = await fetch('https://api.mail.tm/token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -79,23 +81,26 @@
                 currentToken = tokenData.token;
 
                 document.getElementById('emailBox').innerText = currentEmail;
-                document.getElementById('statusIndicator').innerHTML = '<span class="text-green-500 font-bold tracking-tighter uppercase">● Live Monitoring</span>';
-                btn.innerText = "New";
+                document.getElementById('statusIndicator').innerHTML = '<span class="text-green-500 font-bold">● LIVE: ' + currentEmail + '</span>';
+                document.getElementById('mailList').innerHTML = '<div class="text-center text-slate-500 mt-10">Inbox is empty. Waiting for mails...</div>';
                 
-                startChecking();
+                btn.disabled = false;
+                fetchMails();
             } catch (err) {
-                document.getElementById('emailBox').innerText = "API Error! Retry.";
-                btn.innerText = "New";
+                document.getElementById('emailBox').innerText = "API Error! Try Again.";
+                btn.disabled = false;
             }
         }
 
-        function startChecking() {
-            clearInterval(window.itv);
-            window.itv = setInterval(fetchMails, 5000);
-        }
-
         async function fetchMails() {
-            if (!currentToken) return;
+            if (!currentToken) {
+                alert("Please generate a 'New Mail' first!");
+                return;
+            }
+            
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('loading-spin');
+
             try {
                 const res = await fetch('https://api.mail.tm/messages', {
                     headers: { 'Authorization': `Bearer ${currentToken}` }
@@ -104,17 +109,23 @@
                 const mails = data['hydra:member'];
 
                 if (mails.length > 0) {
-                    document.getElementById('noMails').classList.add('hidden');
                     let html = "";
                     mails.forEach(m => {
-                        html += `<div onclick="readMail('${m.id}')" class="p-3 bg-slate-800/80 rounded-xl cursor-pointer hover:border-blue-500 border border-transparent transition mb-2">
-                            <div class="text-blue-400 text-xs font-bold truncate">${m.from.address}</div>
-                            <div class="text-sm font-medium text-white truncate">${m.subject}</div>
+                        html += `<div onclick="readMail('${m.id}')" class="p-4 bg-slate-800/80 rounded-2xl cursor-pointer hover:border-blue-500 border border-transparent transition shadow-lg border-l-4 border-l-blue-500">
+                            <div class="text-blue-400 text-xs font-bold mb-1 uppercase tracking-tighter">${m.from.address}</div>
+                            <div class="text-sm font-semibold text-white truncate">${m.subject || '(No Subject)'}</div>
+                            <div class="text-[9px] text-slate-500 mt-2 text-right">${new Date(m.createdAt).toLocaleTimeString()}</div>
                         </div>`;
                     });
                     document.getElementById('mailList').innerHTML = html;
+                } else {
+                    document.getElementById('mailList').innerHTML = '<div class="text-center text-slate-500 mt-10 italic">Inbox is still empty...</div>';
                 }
-            } catch (e) { console.error("Sync error"); }
+            } catch (e) {
+                console.error("Refresh failed");
+            } finally {
+                setTimeout(() => icon.classList.remove('loading-spin'), 500);
+            }
         }
 
         async function readMail(id) {
@@ -123,9 +134,12 @@
             });
             const data = await res.json();
             document.getElementById('modalContent').innerHTML = `
-                <h2 class="text-xl font-bold mb-2">${data.subject}</h2>
-                <p class="text-xs text-gray-400 mb-4">From: ${data.from.address}</p>
-                <div class="border-t pt-4 text-gray-800">${data.html || data.text}</div>
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-blue-600">${data.subject || 'No Subject'}</h2>
+                    <p class="text-xs text-gray-500 mt-1"><b>From:</b> ${data.from.address}</p>
+                </div>
+                <hr class="mb-4">
+                <div class="text-gray-800 overflow-x-auto text-sm leading-relaxed">${data.html || data.text}</div>
             `;
             document.getElementById('mailModal').classList.remove('hidden');
         }
@@ -135,8 +149,7 @@
         function copyEmail() {
             const email = document.getElementById('emailBox').innerText;
             if(email.includes('@')) {
-                navigator.clipboard.writeText(email);
-                alert("Email Copied!");
+                navigator.clipboard.writeText(email).then(() => alert("Email Copied!"));
             }
         }
     </script>
