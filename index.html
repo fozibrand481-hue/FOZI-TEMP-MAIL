@@ -7,142 +7,98 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: white; }
+        body { background-color: #0f172a; color: white; font-family: 'Inter', sans-serif; }
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .gradient-text { background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
+<body class="min-h-screen p-4">
+    <div class="max-w-md mx-auto pt-10 text-center">
+        <h1 class="text-3xl font-bold mb-6 uppercase tracking-tighter">
+            🔥 <span class="text-blue-400">Fozi Khan</span> <br>Temp Mail Pro
+        </h1>
 
-    <div class="max-w-4xl mx-auto">
-        <header class="text-center mb-10">
-            <h1 class="text-4xl font-extrabold mb-2 uppercase tracking-widest">
-                🔥 <span class="gradient-text">Fozi Khan</span> Temp Mail Pro
-            </h1>
-            <p class="text-slate-400">Fast, Anonymous, and Secure Temporary Email</p>
-        </header>
-
-        <div class="glass rounded-3xl p-6 mb-6 shadow-2xl">
-            <div class="flex flex-col md:flex-row gap-4 items-center">
-                <div class="relative w-full">
-                    <input id="emailAddr" type="text" readonly 
-                        class="w-full bg-slate-900 border border-slate-700 text-blue-400 font-mono text-lg p-4 rounded-xl focus:outline-none" 
-                        value="Generating...">
-                </div>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <button onclick="copyEmail()" class="flex-1 bg-blue-600 hover:bg-blue-500 transition px-6 py-4 rounded-xl font-bold">
-                        <i class="fas fa-copy"></i> Copy
-                    </button>
-                    <button onclick="generateNew()" class="flex-1 bg-slate-700 hover:bg-slate-600 transition px-6 py-4 rounded-xl font-bold">
-                        <i class="fas fa-sync"></i> New
-                    </button>
-                </div>
+        <div class="glass p-6 rounded-2xl mb-6">
+            <input id="emailAddr" type="text" readonly 
+                class="w-full bg-slate-900 border border-slate-700 text-blue-400 text-center font-mono p-4 rounded-xl mb-4" 
+                value="CLICK NEW TO START">
+            
+            <div class="flex gap-2">
+                <button onclick="copyEmail()" class="flex-1 bg-blue-600 p-3 rounded-xl font-bold"><i class="fas fa-copy"></i> Copy</button>
+                <button onclick="generateNew()" class="flex-1 bg-slate-700 p-3 rounded-xl font-bold"><i class="fas fa-sync"></i> New</button>
             </div>
         </div>
 
-        <div class="glass rounded-3xl overflow-hidden shadow-2xl">
-            <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-                <h2 class="text-xl font-bold flex items-center gap-2">
-                    <i class="fas fa-inbox text-blue-400"></i> Inbox
-                    <span id="refreshLoader" class="hidden animate-spin text-sm text-blue-400"><i class="fas fa-spinner"></i></span>
-                </h2>
-                <button onclick="fetchMessages()" class="text-sm text-slate-400 hover:text-white transition">
-                    Refresh Manually
-                </button>
+        <div class="glass rounded-2xl overflow-hidden text-left">
+            <div class="p-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+                <span class="font-bold">📩 Inbox</span>
+                <span id="status" class="text-xs text-slate-400 font-mono italic">Offline</span>
             </div>
-            <div id="mailList" class="divide-y divide-slate-700 min-h-[300px]">
-                <div class="p-20 text-center text-slate-500">
-                    <i class="fas fa-envelope-open text-5xl mb-4 opacity-20"></i>
-                    <p>Waiting for incoming emails...</p>
-                </div>
+            <div id="mailList" class="min-h-[200px] p-4 text-center text-slate-500 text-sm">
+                No mails yet.
             </div>
         </div>
     </div>
 
-    <div id="mailModal" class="fixed inset-0 bg-black/80 hidden z-50 p-4 items-center justify-center">
-        <div class="glass w-full max-w-2xl max-h-[80vh] rounded-3xl overflow-hidden flex flex-col">
-            <div class="p-6 border-b border-slate-700 flex justify-between items-center">
-                <h3 id="modalSubject" class="font-bold text-lg truncate text-white">Subject</h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
-            </div>
-            <div id="modalBody" class="p-6 overflow-y-auto bg-white text-black min-h-[200px]"></div>
+    <div id="viewModal" class="fixed inset-0 bg-black/90 hidden z-50 p-4 overflow-y-auto">
+        <div class="bg-white text-black p-4 rounded-xl max-w-lg mx-auto mt-20">
+            <button onclick="closeMail()" class="float-right text-red-500 font-bold">CLOSE</button>
+            <div id="mailContent" class="mt-8"></div>
         </div>
     </div>
 
     <script>
-        let currentEmail = "";
-        let login = "";
-        let domain = "";
+        let user = "", domain = "";
         const api = "https://www.1secmail.com/api/v1/";
 
         async function generateNew() {
             document.getElementById('emailAddr').value = "Generating...";
             try {
-                const res = await fetch(`${api}?action=genEmail&count=1`);
-                const data = await res.json();
-                currentEmail = data[0];
-                [login, domain] = currentEmail.split('@');
-                document.getElementById('emailAddr').value = currentEmail;
-                document.getElementById('mailList').innerHTML = `<div class="p-20 text-center text-slate-500">Inbox Ready! Send a mail to this address.</div>`;
-                fetchMessages();
-            } catch (err) {
-                document.getElementById('emailAddr').value = "Error! Check Internet.";
-            }
-        }
-
-        async function fetchMessages() {
-            if(!login) return;
-            document.getElementById('refreshLoader').classList.remove('hidden');
-            try {
-                const res = await fetch(`${api}?action=getMessages&login=${login}&domain=${domain}`);
-                const mails = await res.json();
-                renderMailList(mails);
+                const r = await fetch(api + "?action=genEmail&count=1");
+                const d = await r.json();
+                const full = d[0];
+                [user, domain] = full.split('@');
+                document.getElementById('emailAddr').value = full;
+                document.getElementById('status').innerText = "Online - Checking...";
+                document.getElementById('mailList').innerText = "Waiting for messages...";
+                checkInbox();
             } catch (e) {
-                console.log("Fetch Error: Check if you are hosting this online.");
+                document.getElementById('emailAddr').value = "API Error! Refresh Page.";
             }
-            document.getElementById('refreshLoader').classList.add('hidden');
         }
 
-        function renderMailList(mails) {
-            const list = document.getElementById('mailList');
-            if (mails.length === 0) {
-                list.innerHTML = `<div class="p-20 text-center text-slate-500">No emails yet. Checking every 5 seconds...</div>`;
-                return;
-            }
-            list.innerHTML = mails.map(m => `
-                <div onclick="readMail(${m.id})" class="p-4 hover:bg-slate-800 cursor-pointer transition flex justify-between items-center border-b border-slate-700">
-                    <div class="flex-1 pr-4">
-                        <div class="font-bold text-blue-400">${m.from}</div>
-                        <div class="text-sm text-slate-200 truncate">${m.subject}</div>
-                    </div>
-                    <div class="text-xs text-slate-500">${m.date.split(' ')[1]}</div>
-                </div>
-            `).join('');
+        async function checkInbox() {
+            if (!user) return;
+            try {
+                const r = await fetch(`${api}?action=getMessages&login=${user}&domain=${domain}`);
+                const mails = await r.json();
+                if (mails.length > 0) {
+                    let html = "";
+                    mails.forEach(m => {
+                        html += `<div onclick="readMail(${m.id})" class="p-3 border-b border-slate-700 hover:bg-slate-800 cursor-pointer">
+                            <div class="text-blue-400 font-bold text-xs capitalize">${m.from}</div>
+                            <div class="truncate text-white">${m.subject}</div>
+                        </div>`;
+                    });
+                    document.getElementById('mailList').innerHTML = html;
+                }
+            } catch (e) { console.log("Refresh error"); }
+            setTimeout(checkInbox, 5000);
         }
 
         async function readMail(id) {
-            const res = await fetch(`${api}?action=readMessage&login=${login}&domain=${domain}&id=${id}`);
-            const data = await res.json();
-            document.getElementById('modalSubject').innerText = data.subject;
-            document.getElementById('modalBody').innerHTML = data.htmlBody || `<pre class="whitespace-pre-wrap">${data.textBody}</pre>`;
-            document.getElementById('mailModal').classList.replace('hidden', 'flex');
+            const r = await fetch(`${api}?action=readMessage&login=${user}&domain=${domain}&id=${id}`);
+            const d = await r.json();
+            document.getElementById('mailContent').innerHTML = `<b>From:</b> ${d.from}<br><b>Subject:</b> ${d.subject}<hr class="my-4"> ${d.htmlBody || d.textBody}`;
+            document.getElementById('viewModal').classList.remove('hidden');
         }
 
-        function closeModal() {
-            document.getElementById('mailModal').classList.replace('flex', 'hidden');
-        }
+        function closeMail() { document.getElementById('viewModal').classList.add('hidden'); }
 
         function copyEmail() {
             const copyText = document.getElementById("emailAddr");
-            copyText.select();
-            copyText.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(copyText.value);
-            alert("Email Copied: " + copyText.value);
+            alert("Copied!");
         }
-
-        setInterval(fetchMessages, 5000);
-        generateNew();
     </script>
 </body>
 </html>
